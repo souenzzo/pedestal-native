@@ -1,7 +1,9 @@
 (ns hello.main
+  (:gen-class)
   (:require [io.pedestal.http.route :as route]
-            [io.pedestal.http :as http]))
-
+            [io.pedestal.http.jetty]
+            [io.pedestal.http :as http])
+  (:import (org.eclipse.jetty.server Server)))
 
 (defn expand-routes
   [_]
@@ -12,6 +14,7 @@
 (defonce *state (atom nil))
 (defn -main
   [& _]
+  (prn [Server io.pedestal.http.jetty/start])
   (swap! *state
          (fn [st]
            (some-> st http/stop)
