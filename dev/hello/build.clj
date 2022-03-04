@@ -101,6 +101,10 @@
              "--allow-incomplete-classpath"
              "--initialize-at-build-time"
              "--verbose"
+             "-H:DashboardDump=."
+             "-H:+DashboardHeap"
+             "-H:+DashboardBgv"
+             "-H:+DashboardJson"
              "-H:ReflectionConfigurationFiles=reflect-config.json"
              "-H:ResourceConfigurationFiles=resource-config.json"
              "--no-fallback")
