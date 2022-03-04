@@ -18,7 +18,7 @@
 
 (defn ^ProcessBuilder pb-inherit
   [& vs]
-  (cond-> (ProcessBuilder. ^"[Ljava.lang.String;" (into-array (map str vs)))
+  (cond-> (ProcessBuilder. ^"[Ljava.lang.String;" (into-array (map str (remove nil? vs))))
           :always (doto (.redirectOutput ProcessBuilder$Redirect/INHERIT)
                         (.redirectError ProcessBuilder$Redirect/INHERIT))
           *pwd* (doto (.directory *pwd*))))
@@ -53,7 +53,8 @@
 (defn -main
   [& _]
   (let [basis (b/create-basis {:project "deps.edn"
-                               :aliases [#_:log-noop]})]
+                               :aliases [#_:log-noop]})
+        ci-commit-sha (System/getenv "CI_COMMIT_SHA")]
     (b/delete {:path "target"})
     (b/write-pom {:class-dir class-dir
                   :lib       lib
@@ -62,16 +63,17 @@
                   :src-dirs  (:paths basis)})
     (b/compile-clj {:basis     basis
                     :java-opts (concat
-                                (when-let [sha (System/getenv "CI_COMMIT_SHA")]
-                                  [(str "-Dhello.main.version=" sha)]))
+                                ["-Dio.pedestal.log.defaultMetricsRecorder=nil"]
+                                (when ci-commit-sha
+                                  [(str "-Dhello.main.version=" ci-commit-sha)]))
                     :src-dirs  (:paths basis)
                     :class-dir class-dir})
     (b/uber {:class-dir class-dir
              :main      'hello.main
              :uber-file uber-file
              :manifest  (merge {}
-                               (when-let [sha (System/getenv "CI_COMMIT_SHA")]
-                                 {"SCM-Revision" sha}))
+                               (when ci-commit-sha
+                                 {"SCM-Revision" ci-commit-sha}))
              :basis     basis})
     (when-not (.exists (io/file (System/getProperty "java.home")
                                 "bin" "native-image"))
@@ -97,6 +99,9 @@
                       "bin" "native-image")
              "-jar" (io/file ".." "pedestal-native.jar")
              "-H:Name=pedestal-native"
+             "-Dio.pedestal.log.defaultMetricsRecorder=nil"
+             (when ci-commit-sha
+               (str "-Dhello.main.version=" ci-commit-sha))
              "-H:+ReportExceptionStackTraces"
              "--allow-incomplete-classpath"
              "--initialize-at-build-time"
