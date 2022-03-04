@@ -20,7 +20,8 @@ Main goals:
 
 # todo
 
-- [ ] do it in github CI
+- [x] do it in github CI
 - [ ] do it in github CI macos
-- [ ] investigate why the binary is huge
-
+- [x] investigate why the binary is huge
+- [ ] Use [refl](https://github.com/borkdude/refl/blob/main/script/gen-reflect-config.clj) for better reflect.conf
+- [ ] investigate why pedestal.log fails

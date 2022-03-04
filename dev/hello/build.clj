@@ -53,7 +53,7 @@
 (defn -main
   [& _]
   (let [basis (b/create-basis {:project "deps.edn"
-                               :aliases [:log-noop]})]
+                               :aliases [#_:log-noop]})]
     (b/delete {:path "target"})
     (b/write-pom {:class-dir class-dir
                   :lib       lib
