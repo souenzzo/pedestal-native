@@ -102,6 +102,7 @@
              "--initialize-at-build-time"
              "--verbose"
              "-H:DashboardDump=report/pedestal-native"
+             "--trace-object-instantiation=com.sun.jmx.mbeanserver.JmxMBeanServer"
              "-H:+DashboardHeap"
              "-H:+DashboardCode"
              "-H:+DashboardBgv"
