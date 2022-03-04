@@ -5,7 +5,8 @@
   (:import (java.lang ProcessBuilder$Redirect)
            (java.net.http HttpClient HttpRequest HttpResponse$BodyHandlers HttpResponse)
            (java.net URI)
-           (java.nio.channels ClosedChannelException)))
+           (java.nio.channels ClosedChannelException)
+           (java.io File)))
 
 (set! *warn-on-reflection* true)
 
@@ -13,11 +14,14 @@
 (def class-dir "target/classes")
 (def uber-file "target/pedestal-native.jar")
 
+(def ^File ^:dynamic *pwd* nil)
+
 (defn ^ProcessBuilder pb-inherit
   [& vs]
-  (doto (ProcessBuilder. ^"[Ljava.lang.String;" (into-array (map str vs)))
-    (.redirectOutput ProcessBuilder$Redirect/INHERIT)
-    (.redirectError ProcessBuilder$Redirect/INHERIT)))
+  (cond-> (ProcessBuilder. ^"[Ljava.lang.String;" (into-array (map str vs)))
+          :always (doto (.redirectOutput ProcessBuilder$Redirect/INHERIT)
+                        (.redirectError ProcessBuilder$Redirect/INHERIT))
+          *pwd* (doto (.directory *pwd*))))
 
 (defn test-cmd
   [cmd]
@@ -32,14 +36,15 @@
                                      (Thread/sleep 100)
                                      (let [result (try
                                                     (.send client
-                                                           (.build (HttpRequest/newBuilder (URI/create "http://localhost:8080")))
+                                                           (.build (HttpRequest/newBuilder (URI/create "http://localhost:8080/version")))
                                                            (HttpResponse$BodyHandlers/ofString))
                                                     (catch ClosedChannelException ex
                                                       nil))]
                                        (if result
                                          result
                                          (recur (inc n)))))]
-        (prn {:status (.statusCode response)}))
+        (prn {:status (.statusCode response)})
+        (println (.body response)))
       (finally
         (.destroy p)
         (.waitFor p)
@@ -55,11 +60,17 @@
                   :basis     basis
                   :src-dirs  (:paths basis)})
     (b/compile-clj {:basis     basis
+                    :java-opts (concat
+                                (when-let [sha (System/getenv "CI_COMMIT_SHA")]
+                                  [(str "-Dhello.main.version=" sha)]))
                     :src-dirs  (:paths basis)
                     :class-dir class-dir})
     (b/uber {:class-dir class-dir
              :main      'hello.main
              :uber-file uber-file
+             :manifest  (merge {}
+                               (when-let [sha (System/getenv "CI_COMMIT_SHA")]
+                                 {"SCM-Revision" sha}))
              :basis     basis})
     (when-not (.exists (io/file (System/getProperty "java.home")
                                 "bin" "native-image"))
@@ -70,36 +81,32 @@
           (doto (.waitFor))
           .exitValue
           prn))
-    (.delete (io/file "." "pedestal-native"))
-    (.delete (io/file "." "filter.json"))
-    (.delete (io/file "." "reflect-config.json"))
-    (.delete (io/file "." "proxy-config.json"))
-    (.delete (io/file "." "resource-config.json"))
-    (.delete (io/file "." "serialization-config.json"))
-    (.delete (io/file "." "jni-config.json"))
-    (spit (io/file "." "filter.json")
-          (json/generate-string {}))
-    (test-cmd [(io/file (System/getProperty "java.home")
-                        "bin" "java")
-               "-agentlib:native-image-agent=caller-filter-file=filter.json,config-output-dir=."
-               "-jar"
-               (io/file "target" "pedestal-native.jar")])
-    (-> (pb-inherit
-         (io/file (System/getProperty "java.home")
-                  "bin" "native-image")
-         "-jar" (io/file "target" "pedestal-native.jar")
-         "-H:Name=pedestal-native"
-         "-H:+ReportExceptionStackTraces"
-         "--allow-incomplete-classpath"
-         "--initialize-at-build-time"
-         "--verbose"
-         "-H:ReflectionConfigurationFiles=reflect-config.json"
-         "--no-fallback")
-        .start
-        (doto (.waitFor))
-        .exitValue
-        prn)
-    (test-cmd [(io/file "." "pedestal-native")])))
+    (let [target (io/file "target" "native")]
+      (.mkdirs target)
+      (binding [*pwd* target]
+        (spit (io/file target "filter.json")
+              (json/generate-string {}))
+        (test-cmd [(io/file (System/getProperty "java.home")
+                            "bin" "java")
+                   "-agentlib:native-image-agent=caller-filter-file=filter.json,config-output-dir=."
+                   "-jar"
+                   (io/file ".." "pedestal-native.jar")])
+        (-> (pb-inherit
+             (io/file (System/getProperty "java.home")
+                      "bin" "native-image")
+             "-jar" (io/file ".." "pedestal-native.jar")
+             "-H:Name=pedestal-native"
+             "-H:+ReportExceptionStackTraces"
+             "--allow-incomplete-classpath"
+             "--initialize-at-build-time"
+             "--verbose"
+             "-H:ReflectionConfigurationFiles=reflect-config.json"
+             "--no-fallback")
+            .start
+            (doto (.waitFor))
+            .exitValue
+            prn)
+        (test-cmd [(io/file "./pedestal-native")])))))
 
 (comment
  (-main))
