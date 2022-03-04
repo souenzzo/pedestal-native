@@ -26,7 +26,7 @@ jobs:
           CI_COMMIT_SHA: "${{ github.sha }}"
       - uses: "actions/upload-artifact@v2"
         with:
-          name: "pedestal-native-${{ github.run_id }}.zip"
+          name: "pedestal-native-${{ github.run_id }}"
           path: |
             target/*.jar
             target/native/*
