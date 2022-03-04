@@ -24,8 +24,8 @@
                                   :manifest (some-> mf
                                                     io/input-stream
                                                     Manifest.
-                                                    (.getAttributes "SCM-Revision")
-                                                    str)}
+                                                    .getMainAttributes
+                                                    (.getValue "SCM-Revision"))}
                                  (json/generate-string {:pretty true}))
                      :status 200}))]
     (route/expand-routes #{["/version" :get version

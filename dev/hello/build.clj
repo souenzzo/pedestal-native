@@ -101,6 +101,7 @@
              "--initialize-at-build-time"
              "--verbose"
              "-H:ReflectionConfigurationFiles=reflect-config.json"
+             "-H:ResourceConfigurationFiles=resource-config.json"
              "--no-fallback")
             .start
             (doto (.waitFor))
