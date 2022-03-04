@@ -17,16 +17,17 @@
 (defn expand-routes
   [_]
   (let [version (fn [_]
-                  {:body   (-> {:env      ci-commit-sha
-                                :property property-version
-                                :manifest (some-> "META-INF/MANIFEST.MF"
-                                                  io/resource
-                                                  io/input-stream
-                                                  Manifest.
-                                                  (.getAttributes "SCM-Revision")
-                                                  str)}
-                               (json/generate-string {:pretty true}))
-                   :status 200})]
+                  (let [mf (io/resource "META-INF/MANIFEST.MF")]
+                    {:body   (-> {:env      ci-commit-sha
+                                  :property property-version
+                                  :mf       (str mf)
+                                  :manifest (some-> mf
+                                                    io/input-stream
+                                                    Manifest.
+                                                    (.getAttributes "SCM-Revision")
+                                                    str)}
+                                 (json/generate-string {:pretty true}))
+                     :status 200}))]
     (route/expand-routes #{["/version" :get version
                             :route-name ::version]})))
 

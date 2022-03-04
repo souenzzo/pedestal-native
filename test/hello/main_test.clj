@@ -13,5 +13,6 @@
     (is (= {:env      nil
             :manifest nil
             :property nil}
-           (json/parse-string (:body (response-for service-fn :get "/version"))
-                              true)))))
+           (dissoc (json/parse-string (:body (response-for service-fn :get "/version"))
+                                      true)
+                   :mf)))))
